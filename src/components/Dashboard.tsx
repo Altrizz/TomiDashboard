@@ -166,6 +166,16 @@ export function Dashboard({ data, onReset }: DashboardProps) {
       .sort((a,b) => b.avg - a.avg);
   }, [byFreq]);
 
+  const topCountry = sortedCountryStats[0];
+  const bottomCountry = sortedCountryStats[sortedCountryStats.length - 1];
+  const topArea = sortedAreaStats[0];
+  const bottomArea = sortedAreaStats[sortedAreaStats.length - 1];
+  const topSeniority = sortedLevelStats[0];
+  const bottomSeniority = sortedLevelStats[sortedLevelStats.length - 1];
+  const topFreq = sortedFreqStats[0];
+  const bottomFreq = sortedFreqStats[sortedFreqStats.length - 1];
+  const topUseCase = byUseCase[0];
+
   const exportCSV = () => {
     const replacer = (key: string, value: any) => value === null ? '' : value; 
     const header = Object.keys(filteredData[0] || {});
@@ -640,115 +650,274 @@ export function Dashboard({ data, onReset }: DashboardProps) {
 
                 <div className="space-y-5 overflow-y-auto pr-1 flex-1 max-h-[520px] scrollbar-thin">
                   
-                  {/* Circular Readiness Gauge */}
-                  <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-4 hover:bg-white/10 transition-all">
-                    <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="transparent" />
-                        <circle cx="32" cy="32" r="28" stroke="#818cf8" strokeWidth="5" fill="transparent"
-                          strokeDasharray={2 * Math.PI * 28}
-                          strokeDashoffset={2 * Math.PI * 28 * (1 - Number(readiness) / 100)}
-                          strokeLinecap="round"
-                          className="transition-all duration-1000"
-                        />
-                      </svg>
-                      <span className="absolute text-xs font-black text-indigo-300">{readiness}%</span>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Preparación Global (Readiness)</p>
-                      <p className="text-[11px] text-slate-300 font-medium leading-normal">
-                        Proporción de usuarios con perfiles avanzados (Champions & Couriers) ({topLevels} de {totalParticipants}).
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Promedio por País Chart */}
-                  {sortedCountryStats.length > 0 && (
-                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
-                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Puntaje Promedio por País</p>
-                      <div className="space-y-2.5">
-                        {sortedCountryStats.map((c) => (
-                          <div key={c.pais} className="space-y-1">
-                            <div className="flex justify-between text-[11px] leading-none">
-                              <span className="font-semibold text-slate-200">{c.pais} ({c.total})</span>
-                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full" style={{ width: `${c.avg}%` }} />
-                            </div>
-                          </div>
-                        ))}
+                  {/* OVERVIEW TAB INSIGHTS */}
+                  {activeTab === 'overview' && (
+                    <>
+                      {/* Circular Readiness Gauge */}
+                      <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-4 hover:bg-white/10 transition-all">
+                        <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-full h-full transform -rotate-90">
+                            <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="transparent" />
+                            <circle cx="32" cy="32" r="28" stroke="#818cf8" strokeWidth="5" fill="transparent"
+                              strokeDasharray={2 * Math.PI * 28}
+                              strokeDashoffset={2 * Math.PI * 28 * (1 - Number(readiness) / 100)}
+                              strokeLinecap="round"
+                              className="transition-all duration-1000"
+                            />
+                          </svg>
+                          <span className="absolute text-xs font-black text-indigo-300">{readiness}%</span>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Preparación Global (Readiness)</p>
+                          <p className="text-[11px] text-slate-300 font-medium leading-normal">
+                            Proporción de usuarios con perfiles avanzados (Champions & Couriers) ({topLevels} de {totalParticipants}).
+                          </p>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Promedio por Área Chart */}
+                      {sortedAreaStats.length > 0 && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Top Áreas (Puntaje Promedio)</p>
+                          <div className="space-y-2.5">
+                            {sortedAreaStats.slice(0, 3).map((c) => (
+                              <div key={c.area} className="space-y-1">
+                                <div className="flex justify-between text-[11px] leading-none">
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.area} ({c.total})</span>
+                                  <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Adopción por Seniority Chart */}
+                      {sortedLevelStats.length > 0 && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Score por Seniority</p>
+                          <div className="space-y-2.5">
+                            {sortedLevelStats.slice(0, 3).map((c) => (
+                              <div key={c.level} className="space-y-1">
+                                <div className="flex justify-between text-[11px] leading-none">
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.level} ({c.total})</span>
+                                  <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  {/* Promedio por Área Chart */}
-                  {sortedAreaStats.length > 0 && (
-                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
-                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Top Áreas (Puntaje Promedio)</p>
-                      <div className="space-y-2.5">
-                        {sortedAreaStats.slice(0, 4).map((c) => (
-                          <div key={c.area} className="space-y-1">
-                            <div className="flex justify-between text-[11px] leading-none">
-                              <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.area} ({c.total})</span>
-                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
-                            </div>
+                  {/* COUNTRY TAB INSIGHTS */}
+                  {activeTab === 'country' && (
+                    <>
+                      {/* Circular top country Gauge */}
+                      {topCountry && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-4 hover:bg-white/10 transition-all">
+                          <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-full h-full transform -rotate-90">
+                              <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="transparent" />
+                              <circle cx="32" cy="32" r="28" stroke="#06b6d4" strokeWidth="5" fill="transparent"
+                                strokeDasharray={2 * Math.PI * 28}
+                                strokeDashoffset={2 * Math.PI * 28 * (1 - topCountry.avg / 100)}
+                                strokeLinecap="round"
+                                className="transition-all duration-1000"
+                              />
+                            </svg>
+                            <span className="absolute text-xs font-black text-cyan-300">{topCountry.avg.toFixed(1)}</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <div>
+                            <p className="text-[10px] text-cyan-300 uppercase font-bold tracking-wider">Líder Regional (Máximo Score)</p>
+                            <p className="text-[11px] text-slate-300 font-medium leading-normal">
+                              {topCountry.pais} lidera el índice con un promedio sobresaliente. ({topCountry.total} participantes)
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Promedio por País Chart */}
+                      {sortedCountryStats.length > 0 && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Ranking de Países</p>
+                          <div className="space-y-2.5">
+                            {sortedCountryStats.map((c) => (
+                              <div key={c.pais} className="space-y-1">
+                                <div className="flex justify-between text-[11px] leading-none">
+                                  <span className="font-semibold text-slate-200">{c.pais} ({c.total})</span>
+                                  <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full" style={{ width: `${c.avg}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Custom regional analysis card */}
+                      {topCountry && bottomCountry && topCountry.pais !== bottomCountry.pais && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                          <p className="text-[10px] text-rose-300 uppercase font-bold tracking-wider">Brecha Geográfica</p>
+                          <p className="text-[11px] text-slate-300 leading-relaxed">
+                            Existe una brecha de <strong className="text-white">{(topCountry.avg - bottomCountry.avg).toFixed(1)} puntos</strong> entre el país con mayor madurez ({topCountry.pais}) y el de menor madurez ({bottomCountry.pais}).
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  {/* Adopción por Seniority Chart */}
-                  {sortedLevelStats.length > 0 && (
-                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
-                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Score por Seniority</p>
-                      <div className="space-y-2.5">
-                        {sortedLevelStats.map((c) => (
-                          <div key={c.level} className="space-y-1">
-                            <div className="flex justify-between text-[11px] leading-none">
-                              <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.level} ({c.total})</span>
-                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
-                            </div>
+                  {/* SENIORITY & AREA TAB INSIGHTS */}
+                  {activeTab === 'seniority' && (
+                    <>
+                      {/* Circular top area Gauge */}
+                      {topArea && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-4 hover:bg-white/10 transition-all">
+                          <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-full h-full transform -rotate-90">
+                              <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="transparent" />
+                              <circle cx="32" cy="32" r="28" stroke="#a855f7" strokeWidth="5" fill="transparent"
+                                strokeDasharray={2 * Math.PI * 28}
+                                strokeDashoffset={2 * Math.PI * 28 * (1 - topArea.avg / 100)}
+                                strokeLinecap="round"
+                                className="transition-all duration-1000"
+                              />
+                            </svg>
+                            <span className="absolute text-xs font-black text-purple-300">{topArea.avg.toFixed(1)}</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <div>
+                            <p className="text-[10px] text-purple-300 uppercase font-bold tracking-wider">Área de Mayor Adopción</p>
+                            <p className="text-[11px] text-slate-300 font-medium leading-normal">
+                              El área de <strong className="text-white">{topArea.area}</strong> registra la mayor madurez tecnológica con un promedio alto.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Promedio por Área Chart */}
+                      {sortedAreaStats.length > 0 && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Top Áreas</p>
+                          <div className="space-y-2.5">
+                            {sortedAreaStats.slice(0, 4).map((c) => (
+                              <div key={c.area} className="space-y-1">
+                                <div className="flex justify-between text-[11px] leading-none">
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.area} ({c.total})</span>
+                                  <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Adopción por Seniority Chart */}
+                      {sortedLevelStats.length > 0 && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Score por Seniority</p>
+                          <div className="space-y-2.5">
+                            {sortedLevelStats.map((c) => (
+                              <div key={c.level} className="space-y-1">
+                                <div className="flex justify-between text-[11px] leading-none">
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.level} ({c.total})</span>
+                                  <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  {/* Frecuencia de Uso Chart */}
-                  {sortedFreqStats.length > 0 && (
-                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
-                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Uso vs Nivel de Preparación</p>
-                      <div className="space-y-2.5">
-                        {sortedFreqStats.map((c) => (
-                          <div key={c.freq} className="space-y-1">
-                            <div className="flex justify-between text-[11px] leading-none">
-                              <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.freq} ({c.total})</span>
-                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
-                            </div>
-                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
-                            </div>
+                  {/* USAGE PATTERNS TAB INSIGHTS */}
+                  {activeTab === 'usage' && (
+                    <>
+                      {/* Circular top use frequency Gauge */}
+                      {topFreq && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-4 hover:bg-white/10 transition-all">
+                          <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-full h-full transform -rotate-90">
+                              <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="transparent" />
+                              <circle cx="32" cy="32" r="28" stroke="#10b981" strokeWidth="5" fill="transparent"
+                                strokeDasharray={2 * Math.PI * 28}
+                                strokeDashoffset={2 * Math.PI * 28 * (1 - topFreq.avg / 100)}
+                                strokeLinecap="round"
+                                className="transition-all duration-1000"
+                              />
+                            </svg>
+                            <span className="absolute text-xs font-black text-emerald-300">{topFreq.avg.toFixed(1)}</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <div>
+                            <p className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider">Uso Más Efectivo</p>
+                            <p className="text-[11px] text-slate-300 font-medium leading-normal">
+                              La frecuencia &ldquo;{topFreq.freq}&rdquo; obtiene el puntaje promedio más alto. ({topFreq.total} colaboradores)
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Frecuencia de Uso Chart */}
+                      {sortedFreqStats.length > 0 && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Uso vs Nivel de Preparación</p>
+                          <div className="space-y-2.5">
+                            {sortedFreqStats.map((c) => (
+                              <div key={c.freq} className="space-y-1">
+                                <div className="flex justify-between text-[11px] leading-none">
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.freq} ({c.total})</span>
+                                  <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Top Use Case */}
+                      {topUseCase && (
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-2">
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Principal Caso de Uso</p>
+                          <p className="text-[11px] text-slate-200 font-semibold leading-relaxed">
+                            {topUseCase.motivo}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Adopción por {topUseCase.total} colaboradores con promedio de {topUseCase.avg.toFixed(1)} puntos.
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
 
                 </div>
               </div>
 
+              {/* DYNAMIC RECOMENDACIÓN ESTRATÉGICA AT BOTTOM */}
               <div className="pt-4 border-t border-white/10 flex-shrink-0">
                 <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider mb-1">Recomendación Estratégica</p>
                 <p className="text-xs font-semibold leading-relaxed text-white">
-                  Potenciar la formación práctica en las áreas rezagadas y escalar los casos de uso exitosos de los Champions para maximizar el ROI.
+                  {activeTab === 'overview' && "Potenciar la formación práctica en las áreas rezagadas y escalar los casos de uso exitosos de los Champions para maximizar el ROI."}
+                  {activeTab === 'country' && `Establecer transferencia de conocimientos y mentoría cruzada desde ${topCountry?.pais || 'el país líder'} hacia los equipos de ${bottomCountry?.pais || 'otros países'} para homologar el nivel.`}
+                  {activeTab === 'seniority' && `Focalizar programas de habilitación para el área de ${bottomArea?.area || 'menor adopción'} e implementar talleres prácticos de IA diferenciados por nivel de seniority.`}
+                  {activeTab === 'usage' && `Incentivar el uso diario de herramientas de IA asociándolo a los casos de uso más populares, como ${topUseCase?.motivo || 'casos clave'}, para acelerar la curva de aprendizaje global.`}
                 </p>
               </div>
             </div>
