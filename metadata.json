@@ -1,0 +1,6 @@
+{
+  "name": "AI Readiness Dashboard",
+  "description": "Dashboard interactivo para la evaluación y visualización de la preparación en inteligencia artificial (AI Readiness) utilizando datos en formato Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
