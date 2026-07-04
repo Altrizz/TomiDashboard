@@ -142,6 +142,30 @@ export function Dashboard({ data, onReset }: DashboardProps) {
 
   const insights = useMemo(() => generateInsights(filteredData), [filteredData]);
 
+  const sortedCountryStats = useMemo(() => {
+    return [...byCountry]
+      .filter(c => c.pais && c.pais !== 'undefined' && c.pais !== 'null' && c.pais !== '')
+      .sort((a,b) => b.avg - a.avg);
+  }, [byCountry]);
+
+  const sortedAreaStats = useMemo(() => {
+    return [...byArea]
+      .filter(a => a.area && a.area !== 'undefined' && a.area !== 'null' && a.area !== '')
+      .sort((a,b) => b.avg - a.avg);
+  }, [byArea]);
+
+  const sortedLevelStats = useMemo(() => {
+    return [...byLevel]
+      .filter(l => l.level && l.level !== 'undefined' && l.level !== 'null' && l.level !== '')
+      .sort((a,b) => b.avg - a.avg);
+  }, [byLevel]);
+
+  const sortedFreqStats = useMemo(() => {
+    return [...byFreq]
+      .filter(f => f.freq && f.freq !== 'undefined' && f.freq !== 'null' && f.freq !== '')
+      .sort((a,b) => b.avg - a.avg);
+  }, [byFreq]);
+
   const exportCSV = () => {
     const replacer = (key: string, value: any) => value === null ? '' : value; 
     const header = Object.keys(filteredData[0] || {});
@@ -608,40 +632,123 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                 <Layers className="w-40 h-44 text-white" />
               </div>
 
-              <div className="space-y-6">
-                <h3 className="font-bold text-white text-base flex items-center gap-2 tracking-wide uppercase">
+              <div className="space-y-6 flex-1 flex flex-col min-h-0">
+                <h3 className="font-bold text-white text-base flex items-center gap-2 tracking-wide uppercase flex-shrink-0">
                   <span className="w-2.5 h-2.5 bg-indigo-400 rounded-full animate-pulse"></span>
                   AI Executive Insights
                 </h3>
 
-                <div className="space-y-4">
-                  <div className="bg-white/5 p-4 rounded-xl backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
-                    <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider mb-1">Maturity Level</p>
-                    <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                      El nivel global de preparación para IA es <span className="text-indigo-300 font-extrabold">{readiness}%</span>. Se observa un fuerte interés inicial con amplias oportunidades de escalabilidad.
-                    </p>
+                <div className="space-y-5 overflow-y-auto pr-1 flex-1 max-h-[520px] scrollbar-thin">
+                  
+                  {/* Circular Readiness Gauge */}
+                  <div className="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center gap-4 hover:bg-white/10 transition-all">
+                    <div className="relative w-16 h-16 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.05)" strokeWidth="5" fill="transparent" />
+                        <circle cx="32" cy="32" r="28" stroke="#818cf8" strokeWidth="5" fill="transparent"
+                          strokeDasharray={2 * Math.PI * 28}
+                          strokeDashoffset={2 * Math.PI * 28 * (1 - Number(readiness) / 100)}
+                          strokeLinecap="round"
+                          className="transition-all duration-1000"
+                        />
+                      </svg>
+                      <span className="absolute text-xs font-black text-indigo-300">{readiness}%</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Preparación Global (Readiness)</p>
+                      <p className="text-[11px] text-slate-300 font-medium leading-normal">
+                        Proporción de usuarios con perfiles avanzados (Champions & Couriers) ({topLevels} de {totalParticipants}).
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="bg-white/5 p-4 rounded-xl backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
-                    <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider mb-1">Country Spotlight</p>
-                    <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                      Los Champions de IA están concentrados principalmente en regiones con acceso maduro a herramientas digitales, existiendo brechas en áreas de soporte operativo.
-                    </p>
-                  </div>
+                  {/* Promedio por País Chart */}
+                  {sortedCountryStats.length > 0 && (
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Puntaje Promedio por País</p>
+                      <div className="space-y-2.5">
+                        {sortedCountryStats.map((c) => (
+                          <div key={c.pais} className="space-y-1">
+                            <div className="flex justify-between text-[11px] leading-none">
+                              <span className="font-semibold text-slate-200">{c.pais} ({c.total})</span>
+                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full" style={{ width: `${c.avg}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="bg-white/5 p-4 rounded-xl backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all">
-                    <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider mb-1">Frecuencia & Impacto</p>
-                    <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                      La frecuencia de uso diaria se correlaciona con puntajes promedio significativamente superiores al promedio, validando que la práctica incrementa la madurez digital.
-                    </p>
-                  </div>
+                  {/* Promedio por Área Chart */}
+                  {sortedAreaStats.length > 0 && (
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Top Áreas (Puntaje Promedio)</p>
+                      <div className="space-y-2.5">
+                        {sortedAreaStats.slice(0, 4).map((c) => (
+                          <div key={c.area} className="space-y-1">
+                            <div className="flex justify-between text-[11px] leading-none">
+                              <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.area} ({c.total})</span>
+                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Adopción por Seniority Chart */}
+                  {sortedLevelStats.length > 0 && (
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Score por Seniority</p>
+                      <div className="space-y-2.5">
+                        {sortedLevelStats.map((c) => (
+                          <div key={c.level} className="space-y-1">
+                            <div className="flex justify-between text-[11px] leading-none">
+                              <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.level} ({c.total})</span>
+                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Frecuencia de Uso Chart */}
+                  {sortedFreqStats.length > 0 && (
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
+                      <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Uso vs Nivel de Preparación</p>
+                      <div className="space-y-2.5">
+                        {sortedFreqStats.map((c) => (
+                          <div key={c.freq} className="space-y-1">
+                            <div className="flex justify-between text-[11px] leading-none">
+                              <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.freq} ({c.total})</span>
+                              <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 rounded-full" style={{ width: `${c.avg}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10">
+              <div className="pt-4 border-t border-white/10 flex-shrink-0">
                 <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider mb-1">Recomendación Estratégica</p>
                 <p className="text-xs font-semibold leading-relaxed text-white">
-                  Capacitar a los mandos medios con herramientas automatizadas de análisis de datos para detonar una mayor adopción en los flujos diarios de trabajo.
+                  Potenciar la formación práctica en las áreas rezagadas y escalar los casos de uso exitosos de los Champions para maximizar el ROI.
                 </p>
               </div>
             </div>

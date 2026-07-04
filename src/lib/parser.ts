@@ -33,14 +33,15 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
         // Header is row 2 (index 1)
         const headerRow = rows[1] || [];
         
-        let puntajeIdx = -1, nivelIdx = -1, paisIdx = -1, candidatoIdx = -1, emailIdx = -1;
+        // Strictly use Column E (index 4) for score and Column F (index 5) for AI Readiness Level
+        let puntajeIdx = 4;
+        let nivelIdx = 5;
+        let paisIdx = -1, candidatoIdx = -1, emailIdx = -1;
         let freqIdx = -1, motivoIdx = -1;
         
         headerRow.forEach((header: any, index: number) => {
           if (!header) return;
           const hStr = String(header).trim().toLowerCase();
-          if (hStr === 'puntaje' || hStr === 'score') puntajeIdx = index;
-          if (hStr === 'nivel' || hStr === 'level (ai)') nivelIdx = index;
           if (hStr === 'país' || hStr === 'pais' || hStr === 'country') paisIdx = index;
           if (hStr === 'candidato' || hStr === 'nombre') candidatoIdx = index;
           if (hStr === 'email' || hStr === 'correo' || hStr === 'id') emailIdx = index;
@@ -49,8 +50,41 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
         });
 
         // Some fallbacks if specific headers aren't found based on strict match
-        if (puntajeIdx === -1) puntajeIdx = headerRow.findIndex(h => String(h).toLowerCase().includes('puntaje'));
-        if (nivelIdx === -1) nivelIdx = headerRow.findIndex(h => String(h).toLowerCase().includes('nivel'));
+        if (paisIdx === -1) {
+          paisIdx = headerRow.findIndex(h => {
+            const s = String(h).toLowerCase();
+            return s.includes('pais') || s.includes('país') || s.includes('country');
+          });
+        }
+
+        // Pre-pass to check if scores are stored as decimals (0-1) or out of 10
+        let maxScoreDetected = 0;
+        for (let i = 2; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length === 0) continue;
+          let val = puntajeIdx !== -1 ? row[puntajeIdx] : undefined;
+          if (val !== undefined && val !== null) {
+            let p = parseFloat(String(val).replace(',', '.'));
+            if (!isNaN(p) && p > maxScoreDetected) {
+              maxScoreDetected = p;
+            }
+          }
+        }
+
+        let scaleMultiplier = 1;
+        if (maxScoreDetected > 0) {
+          if (maxScoreDetected <= 1.0) {
+            scaleMultiplier = 100;
+          } else if (maxScoreDetected <= 10.0) {
+            scaleMultiplier = 10;
+          } else if (maxScoreDetected <= 20.0) {
+            scaleMultiplier = 5;
+          } else if (maxScoreDetected <= 25.0) {
+            scaleMultiplier = 4;
+          } else if (maxScoreDetected <= 50.0) {
+            scaleMultiplier = 2;
+          }
+        }
 
         const parsedData: AssessmentData[] = [];
         const seenEmails = new Set<string>();
@@ -64,7 +98,11 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
 
           let puntajeVal = puntajeIdx !== -1 ? row[puntajeIdx] : 0;
           let puntaje = parseFloat(String(puntajeVal).replace(',', '.'));
-          if (isNaN(puntaje)) puntaje = 0;
+          if (isNaN(puntaje)) {
+            puntaje = 0;
+          } else {
+            puntaje = puntaje * scaleMultiplier;
+          }
 
           let rawNivel = nivelIdx !== -1 && row[nivelIdx] ? String(row[nivelIdx]).trim() : '';
           let nivel = '';
