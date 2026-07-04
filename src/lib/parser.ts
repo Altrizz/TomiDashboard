@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export interface AssessmentData {
+  id: string;
   puntaje: number;
   nivel: string;
   pais: string;
@@ -10,6 +11,9 @@ export interface AssessmentData {
   email: string;
   frecuencia: string;
   motivos: string[];
+  respuestas?: Record<string, string>;
+  columnaZ?: string;
+  columnaZHeader?: string;
 }
 
 export function parseExcelFile(file: File): Promise<AssessmentData[]> {
@@ -38,6 +42,8 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
         let nivelIdx = 5;
         let paisIdx = -1, candidatoIdx = -1, emailIdx = -1;
         let freqIdx = -1, motivoIdx = -1;
+        let areaIdx = 8;
+        let levelIdx = 9;
         
         headerRow.forEach((header: any, index: number) => {
           if (!header) return;
@@ -47,6 +53,8 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
           if (hStr === 'email' || hStr === 'correo' || hStr === 'id') emailIdx = index;
           if (hStr.startsWith('¿con qué frecuencia') || hStr.includes('frecuencia')) freqIdx = index;
           if (hStr.startsWith('¿para qué tipo de tareas') || hStr.includes('tipo de tareas') || hStr.includes('motivo')) motivoIdx = index;
+          if (hStr === 'área' || hStr === 'area' || hStr === 'departamento') areaIdx = index;
+          if (hStr === 'seniority' || hStr === 'nivel jerárquico' || hStr === 'nivel jerarquico' || hStr === 'hierarchy' || hStr === 'cargo') levelIdx = index;
         });
 
         // Some fallbacks if specific headers aren't found based on strict match
@@ -56,6 +64,35 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
             return s.includes('pais') || s.includes('país') || s.includes('country');
           });
         }
+
+        // Identify other question columns
+        const questionCols: { index: number; text: string }[] = [];
+        headerRow.forEach((header: any, index: number) => {
+          if (!header) return;
+          const hStr = String(header).trim();
+          const hLower = hStr.toLowerCase();
+          
+          // Exclude direct metadata columns
+          if (
+            index === puntajeIdx ||
+            index === nivelIdx ||
+            index === paisIdx ||
+            index === candidatoIdx ||
+            index === emailIdx ||
+            index === areaIdx ||
+            index === levelIdx ||
+            hLower === 'id' ||
+            hLower === 'timestamp' ||
+            hLower === 'marca temporal'
+          ) {
+            return;
+          }
+          if (hStr.length > 2) {
+            questionCols.push({ index, text: hStr });
+          }
+        });
+
+        const colZHeader = headerRow[25] ? String(headerRow[25]).trim() : 'Columna Z (Pregunta)';
 
         // Pre-pass to check if scores are stored as decimals (0-1) or out of 10
         let maxScoreDetected = 0;
@@ -142,6 +179,13 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
             motivos = ['No utilizo IA'];
           }
 
+          // Populate individual answers
+          const respuestas: Record<string, string> = {};
+          questionCols.forEach(({ index: colIdx, text: colText }) => {
+            const cell = row[colIdx];
+            respuestas[colText] = cell !== undefined && cell !== null ? String(cell).trim() : 'Sin respuesta';
+          });
+
           // Deduplication
           const id = email || candidato;
           if (seenEmails.has(id)) {
@@ -149,7 +193,10 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
           }
           seenEmails.add(id);
 
+          const columnaZ = row[25] !== undefined && row[25] !== null ? String(row[25]).trim() : 'Sin respuesta';
+
           parsedData.push({
+            id,
             puntaje,
             nivel,
             pais,
@@ -158,7 +205,10 @@ export function parseExcelFile(file: File): Promise<AssessmentData[]> {
             candidato,
             email,
             frecuencia,
-            motivos
+            motivos,
+            respuestas,
+            columnaZ,
+            columnaZHeader: colZHeader
           });
         }
 

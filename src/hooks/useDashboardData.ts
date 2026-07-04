@@ -23,6 +23,7 @@ export type Filters = {
   nivel: string[];
   frecuencia: string[];
   motivo: string[];
+  columnaZ: string[];
 };
 
 export function useDashboardData(rawData: AssessmentData[]) {
@@ -32,7 +33,8 @@ export function useDashboardData(rawData: AssessmentData[]) {
     level: [],
     nivel: [],
     frecuencia: [],
-    motivo: []
+    motivo: [],
+    columnaZ: []
   });
 
   const availableFilters = useMemo(() => {
@@ -42,6 +44,7 @@ export function useDashboardData(rawData: AssessmentData[]) {
     const niveles = new Set<string>();
     const frecuencias = new Set<string>();
     const motivos = new Set<string>();
+    const columnaZs = new Set<string>();
 
     rawData.forEach(d => {
       if (d.pais) paises.add(d.pais);
@@ -49,6 +52,7 @@ export function useDashboardData(rawData: AssessmentData[]) {
       if (d.level) levels.add(d.level);
       if (d.nivel) niveles.add(d.nivel);
       if (d.frecuencia) frecuencias.add(d.frecuencia);
+      if (d.columnaZ) columnaZs.add(d.columnaZ);
       d.motivos.forEach(m => motivos.add(m));
     });
 
@@ -58,7 +62,8 @@ export function useDashboardData(rawData: AssessmentData[]) {
       level: Array.from(levels).sort(),
       nivel: AI_LEVELS.filter(l => niveles.has(l)),
       frecuencia: Array.from(frecuencias).sort(),
-      motivo: Array.from(motivos).sort()
+      motivo: Array.from(motivos).sort(),
+      columnaZ: Array.from(columnaZs).sort()
     };
   }, [rawData]);
 
@@ -70,6 +75,7 @@ export function useDashboardData(rawData: AssessmentData[]) {
       if (filters.nivel.length > 0 && !filters.nivel.includes(d.nivel)) return false;
       if (filters.frecuencia.length > 0 && !filters.frecuencia.includes(d.frecuencia)) return false;
       if (filters.motivo.length > 0 && !d.motivos.some(m => filters.motivo.includes(m))) return false;
+      if (filters.columnaZ && filters.columnaZ.length > 0 && !filters.columnaZ.includes(d.columnaZ || '')) return false;
       return true;
     });
   }, [rawData, filters]);
@@ -82,7 +88,7 @@ export function useDashboardData(rawData: AssessmentData[]) {
   };
 
   const clearFilters = () => {
-    setFilters({ pais: [], area: [], level: [], nivel: [], frecuencia: [], motivo: [] });
+    setFilters({ pais: [], area: [], level: [], nivel: [], frecuencia: [], motivo: [], columnaZ: [] });
   };
 
   return { filteredData, availableFilters, filters, updateFilter, clearFilters };

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AssessmentData } from '../lib/parser';
 import { useDashboardData, AI_LEVELS, LEVEL_COLORS, computeAverage, computeMedian } from '../hooks/useDashboardData';
 import { generateInsights } from '../lib/insights';
@@ -20,7 +20,25 @@ interface DashboardProps {
 export function Dashboard({ data, onReset }: DashboardProps) {
   const { filteredData, filters, availableFilters, updateFilter, clearFilters } = useDashboardData(data);
   const [activeTab, setActiveTab] = useState<'overview' | 'country' | 'seniority' | 'usage'>('overview');
-  const filterKeys = ['pais', 'area', 'level', 'nivel', 'frecuencia', 'motivo'] as const;
+  const filterKeys = ['pais', 'area', 'level', 'nivel', 'frecuencia', 'motivo', 'columnaZ'] as const;
+
+  // Local Column Z filter for survey deep-dive
+  const [columnaZFilter, setColumnaZFilter] = useState<string>('');
+
+  const colZHeader = useMemo(() => {
+    const found = data.find(d => d.columnaZHeader);
+    return found?.columnaZHeader || 'Columna Z';
+  }, [data]);
+
+  const uniqueColZValues = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach(d => {
+      if (d.columnaZ) {
+        set.add(d.columnaZ);
+      }
+    });
+    return Array.from(set).filter(val => val && val !== 'Sin respuesta' && val.toLowerCase() !== 'undefined').sort();
+  }, [data]);
 
   // General KPIs
   const totalParticipants = filteredData.length;
@@ -139,6 +157,111 @@ export function Dashboard({ data, onReset }: DashboardProps) {
       };
     }).sort((a,b) => b.total - a.total);
   }, [filteredData]);
+
+  // Selected Column Z value for detailed deep-dive
+  const [selectedColZ, setSelectedColZ] = useState<string>('');
+
+  // Primary relationship builder between Column Z (Use Cases), Seniority (level) and AI Level (nivel)
+  const colZAnalysis = useMemo(() => {
+    const map = new Map<string, AssessmentData[]>();
+    filteredData.forEach(d => {
+      const val = d.columnaZ || 'Sin respuesta';
+      if (!val || val === 'Sin respuesta' || val.toLowerCase() === 'undefined' || val.toLowerCase() === 'null') return;
+      if (!map.has(val)) map.set(val, []);
+      map.get(val)!.push(d);
+    });
+
+    return Array.from(map.entries()).map(([value, rows]) => {
+      // AI Level counts
+      const aiLevelCounts = AI_LEVELS.reduce((acc, lvl) => {
+        acc[lvl] = 0;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Seniority level counts
+      const seniorityCounts = {} as Record<string, number>;
+      availableFilters.level.forEach(lvl => {
+        seniorityCounts[lvl] = 0;
+      });
+
+      rows.forEach(r => {
+        if (r.nivel in aiLevelCounts) {
+          aiLevelCounts[r.nivel]++;
+        }
+        if (r.level in seniorityCounts) {
+          seniorityCounts[r.level]++;
+        } else {
+          seniorityCounts[r.level] = (seniorityCounts[r.level] || 0) + 1;
+        }
+      });
+
+      return {
+        useCase: value,
+        total: rows.length,
+        avg: computeAverage(rows),
+        aiLevels: aiLevelCounts,
+        seniority: seniorityCounts
+      };
+    }).sort((a, b) => b.total - a.total);
+  }, [filteredData, availableFilters.level]);
+
+  const colZAnalysisProcessed = useMemo(() => {
+    return colZAnalysis.map(item => {
+      // Find highest AI Level
+      let maxAiLevel = '';
+      let maxAiCount = -1;
+      Object.entries(item.aiLevels as Record<string, number>).forEach(([lvl, count]) => {
+        if (count > maxAiCount) {
+          maxAiCount = count;
+          maxAiLevel = lvl;
+        }
+      });
+
+      // Find highest Seniority
+      let maxSeniority = '';
+      let maxSeniorityCount = -1;
+      Object.entries(item.seniority as Record<string, number>).forEach(([lvl, count]) => {
+        if (count > maxSeniorityCount) {
+          maxSeniorityCount = count;
+          maxSeniority = lvl;
+        }
+      });
+
+      return {
+        ...item,
+        predominantAiLevel: maxAiLevel ? maxAiLevel.split(' - ')[0] : 'Desconocido',
+        predominantAiLevelColor: LEVEL_COLORS[maxAiLevel] || '#94a3b8',
+        predominantSeniority: maxSeniority || 'Desconocido'
+      };
+    });
+  }, [colZAnalysis]);
+
+  const activeColZDetail = useMemo(() => {
+    if (!selectedColZ && colZAnalysisProcessed.length > 0) {
+      return colZAnalysisProcessed[0];
+    }
+    return colZAnalysisProcessed.find(c => c.useCase === selectedColZ) || colZAnalysisProcessed[0] || null;
+  }, [colZAnalysisProcessed, selectedColZ]);
+
+  const aiLevelChartData = useMemo(() => {
+    if (!activeColZDetail) return [];
+    return AI_LEVELS.map(level => ({
+      name: level.split(' - ')[0],
+      fullName: level,
+      count: activeColZDetail.aiLevels[level] || 0,
+      percentage: activeColZDetail.total > 0 ? (((activeColZDetail.aiLevels[level] || 0) / activeColZDetail.total) * 100) : 0,
+      fill: LEVEL_COLORS[level] || '#94a3b8'
+    }));
+  }, [activeColZDetail]);
+
+  const seniorityChartData = useMemo(() => {
+    if (!activeColZDetail) return [];
+    return Object.entries(activeColZDetail.seniority as Record<string, number>).map(([level, count]) => ({
+      name: level,
+      count,
+      percentage: activeColZDetail.total > 0 ? ((count / activeColZDetail.total) * 100) : 0
+    })).sort((a, b) => b.count - a.count);
+  }, [activeColZDetail]);
 
   const insights = useMemo(() => generateInsights(filteredData), [filteredData]);
 
@@ -271,7 +394,8 @@ export function Dashboard({ data, onReset }: DashboardProps) {
           { label: 'Área', key: 'area' },
           { label: 'Seniority', key: 'level' },
           { label: 'Frecuencia', key: 'frecuencia' },
-          { label: 'Motivo / Uso', key: 'motivo' }
+          { label: 'Motivo / Uso', key: 'motivo' },
+          { label: colZHeader.length > 25 ? colZHeader.slice(0, 25) + '...' : colZHeader, key: 'columnaZ' }
         ].map(f => (
           <div key={f.key} className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-500">{f.label}:</span>
@@ -631,6 +755,184 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* ANÁLISIS EXCLUSIVO COLUMNA Z - CASOS DE USO VS SENIORITY Y NIVEL DE IA */}
+                  {colZAnalysisProcessed.length > 0 && (
+                    <Card id="col-z-usecase-analysis" className="border border-slate-200">
+                      <CardHeader className="border-b bg-slate-50/50">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                              <Award className="w-5 h-5 text-indigo-500" />
+                              Relación de Casos de Uso (Columna Z) con Nivel de IA y Seniority
+                            </CardTitle>
+                            <p className="text-xs text-slate-500">
+                              Visualiza exclusivamente la correlación entre los casos de uso descritos en la columna Z, el nivel de madurez calculado y el cargo (Seniority) de los participantes.
+                            </p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-6">
+                        {/* Selector of use cases */}
+                        <div className="flex flex-col md:flex-row md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                          <div className="w-full md:w-80">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                              Seleccionar Caso de Uso para Análisis Detallado
+                            </label>
+                            <select
+                              value={selectedColZ}
+                              onChange={(e) => setSelectedColZ(e.target.value)}
+                              className="w-full text-xs font-bold bg-white border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800"
+                            >
+                              <option value="">-- {colZHeader} (Más populares primero) --</option>
+                              {colZAnalysisProcessed.map((item) => (
+                                <option key={item.useCase} value={item.useCase}>
+                                  {item.useCase} ({item.total} {item.total === 1 ? 'mención' : 'menciones'})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="flex-1 text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200 leading-relaxed">
+                            <span className="font-bold text-indigo-600">Tip de análisis:</span> Selecciona cualquier opción de la Columna Z de arriba para filtrar las visualizaciones y ver en detalle a qué cargos (Seniority) y niveles de madurez de IA corresponden los usuarios de dicho caso de uso.
+                          </div>
+                        </div>
+
+                        {/* Top-level grid: Left list, Right breakdown charts */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                          
+                          {/* Left Column: All use cases comparison list */}
+                          <div className="lg:col-span-6 space-y-3">
+                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                              <span>Resumen de Casos de Uso (Columna Z)</span>
+                            </h4>
+                            <div className="overflow-x-auto border rounded-xl max-h-[380px] overflow-y-auto">
+                              <table className="w-full text-xs text-left">
+                                <thead className="text-[10px] text-slate-500 uppercase bg-slate-50 border-b sticky top-0 z-10">
+                                  <tr>
+                                    <th className="px-3 py-2.5 font-bold">Caso de Uso</th>
+                                    <th className="px-3 py-2.5 font-bold text-right">Muestras</th>
+                                    <th className="px-3 py-2.5 font-bold text-right">Promedio</th>
+                                    <th className="px-3 py-2.5 font-bold">Nivel Predominante</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {colZAnalysisProcessed.map((item) => {
+                                    const isSelected = activeColZDetail?.useCase === item.useCase;
+                                    return (
+                                      <tr 
+                                        key={item.useCase} 
+                                        onClick={() => setSelectedColZ(item.useCase)}
+                                        className={`border-b last:border-0 cursor-pointer hover:bg-indigo-50/40 transition-colors ${isSelected ? 'bg-indigo-50/70 hover:bg-indigo-50/80 font-semibold' : ''}`}
+                                      >
+                                        <td className="px-3 py-2.5 text-slate-800 max-w-[200px] truncate" title={item.useCase}>
+                                          {item.useCase}
+                                        </td>
+                                        <td className="px-3 py-2.5 text-right text-slate-500">
+                                          {item.total}
+                                        </td>
+                                        <td className="px-3 py-2.5 text-right font-extrabold text-indigo-600">
+                                          {item.avg.toFixed(1)}
+                                        </td>
+                                        <td className="px-3 py-2.5">
+                                          <span 
+                                            className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold text-white whitespace-nowrap"
+                                            style={{ backgroundColor: item.predominantAiLevelColor }}
+                                          >
+                                            {item.predominantAiLevel}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Right Column: Active Use Case Details & Breakdown */}
+                          {activeColZDetail && (
+                            <div className="lg:col-span-6 space-y-5 bg-slate-50/40 p-4 rounded-xl border border-slate-100">
+                              <div>
+                                <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Caso de Uso Seleccionado</h4>
+                                <p className="text-sm font-bold text-slate-800 break-words line-clamp-2" title={activeColZDetail.useCase}>
+                                  &ldquo;{activeColZDetail.useCase}&rdquo;
+                                </p>
+                                <div className="mt-2 flex gap-4 text-xs">
+                                  <div>
+                                    <span className="text-slate-500">Total participantes:</span>{' '}
+                                    <strong className="text-slate-800">{activeColZDetail.total}</strong>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Madurez Promedio:</span>{' '}
+                                    <strong className="text-indigo-600">{activeColZDetail.avg.toFixed(1)} pts</strong>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Breakdown 1: AI Level */}
+                              <div className="space-y-2">
+                                <h5 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                  Composición por Nivel de Madurez IA
+                                </h5>
+                                <div className="h-32 w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={aiLevelChartData} layout="vertical" margin={{ top: 0, right: 20, left: -25, bottom: 0 }}>
+                                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                      <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
+                                      <YAxis dataKey="name" type="category" tick={{fontSize: 9}} width={60} axisLine={false} tickLine={false} />
+                                      <Tooltip 
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Porcentaje']}
+                                      />
+                                      <Bar dataKey="percentage" fill="#4f46e5" radius={[0, 4, 4, 0]} barSize={10}>
+                                        {aiLevelChartData.map((entry, index) => (
+                                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                      </Bar>
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+
+                              {/* Breakdown 2: Seniority */}
+                              <div className="space-y-2">
+                                <h5 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                  Distribución por Cargo (Seniority)
+                                </h5>
+                                <div className="h-32 w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={seniorityChartData} layout="vertical" margin={{ top: 0, right: 20, left: -25, bottom: 0 }}>
+                                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                      <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
+                                      <YAxis dataKey="name" type="category" tick={{fontSize: 9}} width={65} axisLine={false} tickLine={false} />
+                                      <Tooltip 
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                        formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Porcentaje']}
+                                      />
+                                      <Bar dataKey="percentage" name="Porcentaje" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={10} />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+
+                              {/* Interactive Text Insight */}
+                              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 text-xs text-indigo-950">
+                                <span className="font-bold uppercase text-[9px] text-indigo-600 block tracking-wider mb-1">
+                                  Patrón Encontrado (Zoom de Uso)
+                                </span>
+                                <p className="leading-relaxed">
+                                  Los encuestados que usan la IA para <strong className="text-indigo-900">&ldquo;{activeColZDetail.useCase}&rdquo;</strong> tienen una madurez promedio de <strong className="text-indigo-700">{activeColZDetail.avg.toFixed(1)} puntos</strong>. El cargo predominante en este segmento es <strong className="text-indigo-900">{activeColZDetail.predominantSeniority}</strong>, y la categoría de preparación de IA de mayor frecuencia es <strong className="text-indigo-700">{activeColZDetail.predominantAiLevel}</strong>.
+                                </p>
+                              </div>
+
+                            </div>
+                          )}
+
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               )}
 
