@@ -618,7 +618,7 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                                 <Cell key={`cell-${index}`} fill={LEVEL_COLORS[entry.name] || LEVEL_COLORS.Unknown} />
                               ))}
                             </Pie>
-                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                            <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                           </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -987,7 +987,7 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
                                       <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
                                       <YAxis dataKey="name" type="category" tick={{fontSize: 9}} width={60} axisLine={false} tickLine={false} />
-                                      <Tooltip 
+                                      <Tooltip cursor={{fill: '#f8fafc'}}
                                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                         formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Porcentaje']}
                                       />
@@ -1012,7 +1012,7 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
                                       <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
                                       <YAxis dataKey="name" type="category" tick={{fontSize: 9}} width={65} axisLine={false} tickLine={false} />
-                                      <Tooltip 
+                                      <Tooltip cursor={{fill: '#f8fafc'}}
                                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                         formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Porcentaje']}
                                       />
