@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, ComposedChart 
 } from 'recharts';
-import { FileDown, Download, Layers, ShieldCheck, MapPin, Award, Users, TrendingUp, HelpCircle } from 'lucide-react';
+import { FileDown, Download, Layers, ShieldCheck, MapPin, Award, Users, TrendingUp, HelpCircle, Lightbulb } from 'lucide-react';
 import * as FileSaver from 'file-saver';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -264,6 +264,112 @@ export function Dashboard({ data, onReset }: DashboardProps) {
   }, [activeColZDetail]);
 
   const insights = useMemo(() => generateInsights(filteredData), [filteredData]);
+
+  const executiveBulletInsights = useMemo(() => {
+    if (filteredData.length === 0) return null;
+
+    const levelExplorerCounts = {} as Record<string, number>;
+    const paisCourierCounts = {} as Record<string, number>;
+    const areaChampionCounts = {} as Record<string, number>;
+
+    const useCaseLevelCounts = {
+      [AI_LEVELS[0]]: {} as Record<string, number>, // Champion
+      [AI_LEVELS[1]]: {} as Record<string, number>, // Courier
+      [AI_LEVELS[2]]: {} as Record<string, number>, // Ready
+      [AI_LEVELS[3]]: {} as Record<string, number>, // Explorer
+    };
+
+    filteredData.forEach(d => {
+      if (d.nivel === AI_LEVELS[3] && d.level) {
+        levelExplorerCounts[d.level] = (levelExplorerCounts[d.level] || 0) + 1;
+      }
+      if (d.nivel === AI_LEVELS[1] && d.pais) {
+        paisCourierCounts[d.pais] = (paisCourierCounts[d.pais] || 0) + 1;
+      }
+      if (d.nivel === AI_LEVELS[0] && d.area) {
+        areaChampionCounts[d.area] = (areaChampionCounts[d.area] || 0) + 1;
+      }
+
+      if (d.nivel && useCaseLevelCounts[d.nivel] && d.columnaZ && d.columnaZ !== 'Sin respuesta' && d.columnaZ !== 'undefined' && d.columnaZ !== 'null') {
+        useCaseLevelCounts[d.nivel][d.columnaZ] = (useCaseLevelCounts[d.nivel][d.columnaZ] || 0) + 1;
+      }
+    });
+
+    const getTop = (record: Record<string, number>) => {
+      const entries = Object.entries(record).sort((a,b) => b[1] - a[1]);
+      return entries.length > 0 ? entries[0] : null;
+    };
+
+    const topExplorerLevel = getTop(levelExplorerCounts);
+    const topCourierPais = getTop(paisCourierCounts);
+    const topChampionArea = getTop(areaChampionCounts);
+
+    const topChampionUseCase = getTop(useCaseLevelCounts[AI_LEVELS[0]]);
+    const topCourierUseCase = getTop(useCaseLevelCounts[AI_LEVELS[1]]);
+    const topReadyUseCase = getTop(useCaseLevelCounts[AI_LEVELS[2]]);
+    const topExplorerUseCase = getTop(useCaseLevelCounts[AI_LEVELS[3]]);
+
+    const bullets = [];
+    const recommendations = [];
+
+    if (topExplorerLevel) {
+      bullets.push({
+        title: "Concentración Inicial",
+        text: `El nivel (Seniority) que más aporta a la categoría "${AI_LEVELS[3].split(' - ')[0]}" es **${topExplorerLevel[0]}** (${topExplorerLevel[1]} usuarios).`
+      });
+      recommendations.push(`Diseñar programas de adopción (ej. clínicas de prompts) enfocados específicamente en el segmento de ${topExplorerLevel[0]} para acelerar su transición a niveles superiores.`);
+    }
+
+    if (topCourierPais) {
+      bullets.push({
+        title: "Impulso Intermedio",
+        text: `El país que más aporta a la categoría "${AI_LEVELS[1].split(' - ')[0]}" es **${topCourierPais[0]}** (${topCourierPais[1]} usuarios).`
+      });
+      recommendations.push(`Aprovechar el gran volumen de usuarios intermedios en ${topCourierPais[0]} mediante retos prácticos y mentorías para convertirlos en Champions organizacionales.`);
+    }
+
+    if (topChampionArea) {
+      bullets.push({
+        title: "Liderazgo Avanzado",
+        text: `El área que concentra más perfiles "${AI_LEVELS[0].split(' - ')[0]}" es **${topChampionArea[0]}** (${topChampionArea[1]} usuarios).`
+      });
+      recommendations.push(`Identificar a los Champions del área de ${topChampionArea[0]} para que funjan como embajadores tecnológicos y compartan sus casos de éxito con áreas de menor desempeño.`);
+    }
+
+    if (topChampionUseCase) {
+      bullets.push({
+        title: "Patrón Avanzado (Champions)",
+        text: `El principal caso de uso para los usuarios "${AI_LEVELS[0].split(' - ')[0]}" es **${topChampionUseCase[0]}** (${topChampionUseCase[1]} menciones).`
+      });
+      recommendations.push(`Potenciar el caso de uso "${topChampionUseCase[0]}" documentando las mejores prácticas de los Champions para crear plantillas que el resto de la organización pueda reutilizar.`);
+    }
+
+    if (topCourierUseCase) {
+      bullets.push({
+        title: "Patrón Intermedio-Alto (Couriers)",
+        text: `El principal caso de uso para los usuarios "${AI_LEVELS[1].split(' - ')[0]}" es **${topCourierUseCase[0]}** (${topCourierUseCase[1]} menciones).`
+      });
+      recommendations.push(`Aprovechar el interés en "${topCourierUseCase[0]}" para escalar casos de uso intermedios y brindar herramientas avanzadas a este segmento para que den el salto a Champions.`);
+    }
+
+    if (topReadyUseCase) {
+      bullets.push({
+        title: "Patrón Intermedio-Bajo (Ready)",
+        text: `El principal caso de uso para los usuarios "${AI_LEVELS[2].split(' - ')[0]}" es **${topReadyUseCase[0]}** (${topReadyUseCase[1]} menciones).`
+      });
+      recommendations.push(`Fomentar el uso de IA en "${topReadyUseCase[0]}" mediante sesiones prácticas que muestren la eficiencia ganada, motivando a este grupo a integrar la IA más profundamente en sus rutinas.`);
+    }
+
+    if (topExplorerUseCase) {
+      bullets.push({
+        title: "Patrón Inicial (Explorers)",
+        text: `El principal caso de uso para los usuarios "${AI_LEVELS[3].split(' - ')[0]}" es **${topExplorerUseCase[0]}** (${topExplorerUseCase[1]} menciones).`
+      });
+      recommendations.push(`Utilizar "${topExplorerUseCase[0]}" como el principal gancho de entrenamiento (quick-win) para aquellos en nivel inicial, demostrando valor inmediato y reduciendo la fricción tecnológica.`);
+    }
+
+    return { bullets, recommendations };
+  }, [filteredData]);
 
   const sortedCountryStats = useMemo(() => {
     return [...byCountry]
@@ -977,15 +1083,57 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                         </div>
                       </div>
 
+                      {/* Hallazgos y Recomendaciones */}
+                      {executiveBulletInsights && (
+                        <div className="space-y-4 mt-2">
+                          {executiveBulletInsights.bullets.length > 0 && (
+                            <div className="bg-white/5 p-4 rounded-xl border border-indigo-500/20 space-y-3 hover:bg-white/10 transition-all">
+                              <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider flex items-center gap-1.5">
+                                <Award className="w-3.5 h-3.5" />
+                                Hallazgos Clave
+                              </p>
+                              <ul className="space-y-2.5">
+                                {executiveBulletInsights.bullets.map((b, i) => (
+                                  <li key={i} className="text-[11px] text-slate-300 leading-relaxed flex gap-2">
+                                    <span className="text-indigo-400 mt-0.5">•</span>
+                                    <span>
+                                      <strong className="text-indigo-200">{b.title}:</strong>{' '}
+                                      <span dangerouslySetInnerHTML={{ __html: b.text.replace(/\*\*(.*?)\*\*/g, '<strong className="text-white">$1</strong>') }} />
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {executiveBulletInsights.recommendations.length > 0 && (
+                            <div className="bg-indigo-950/40 p-4 rounded-xl border border-indigo-400/30 space-y-3 hover:bg-indigo-950/60 transition-all">
+                              <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider flex items-center gap-1.5">
+                                <Lightbulb className="w-3.5 h-3.5" />
+                                Recomendaciones Estratégicas
+                              </p>
+                              <ul className="space-y-2.5">
+                                {executiveBulletInsights.recommendations.map((r, i) => (
+                                  <li key={i} className="text-[11px] text-indigo-100 leading-relaxed flex gap-2">
+                                    <span className="text-indigo-400 mt-0.5">→</span>
+                                    <span>{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Promedio por Área Chart */}
                       {sortedAreaStats.length > 0 && (
                         <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
-                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Top Áreas (Puntaje Promedio)</p>
+                          <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Desempeño por Área (Promedio)</p>
                           <div className="space-y-2.5">
-                            {sortedAreaStats.slice(0, 3).map((c) => (
+                            {sortedAreaStats.map((c) => (
                               <div key={c.area} className="space-y-1">
                                 <div className="flex justify-between text-[11px] leading-none">
-                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.area} ({c.total})</span>
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]" title={c.area}>{c.area} ({c.total})</span>
                                   <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
                                 </div>
                                 <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -1002,10 +1150,10 @@ export function Dashboard({ data, onReset }: DashboardProps) {
                         <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 hover:bg-white/10 transition-all">
                           <p className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Score por Seniority</p>
                           <div className="space-y-2.5">
-                            {sortedLevelStats.slice(0, 3).map((c) => (
+                            {sortedLevelStats.map((c) => (
                               <div key={c.level} className="space-y-1">
                                 <div className="flex justify-between text-[11px] leading-none">
-                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]">{c.level} ({c.total})</span>
+                                  <span className="font-semibold text-slate-200 truncate max-w-[170px]" title={c.level}>{c.level} ({c.total})</span>
                                   <span className="font-bold text-indigo-300">{c.avg.toFixed(1)} pts</span>
                                 </div>
                                 <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
